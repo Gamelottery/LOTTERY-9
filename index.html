@@ -1,161 +1,174 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="my">
 <head>
-  <meta charset="UTF-8" />
-  <title>Lottery Website</title>
+  <meta charset="UTF-8">
+  <title>Lottery Web</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-  <h1>Lottery Website</h1>
+<body class="bg-gray-100">
 
-  <!-- Login/Register Section -->
-  <div id="auth">
-    <h2>Login / Register</h2>
-    <input id="email" type="email" placeholder="Email"><br>
-    <input id="password" type="password" placeholder="Password"><br>
-    <button onclick="register()">Register</button>
-    <button onclick="login()">Login</button>
-    <button onclick="logout()">Logout</button>
+  <!-- Login Section -->
+  <div id="loginSection" class="flex items-center justify-center min-h-screen">
+    <div class="bg-white p-6 rounded-lg shadow-lg w-96">
+      <h2 class="text-2xl font-bold mb-4 text-center">Login</h2>
+      <input id="loginPhone" type="text" placeholder="ဖုန်းနံပါတ်" class="w-full p-2 mb-3 border rounded">
+      <input id="loginPassword" type="password" placeholder="လျှို့ဝှက်နံပါတ်" class="w-full p-2 mb-3 border rounded">
+      <button id="loginBtn" class="w-full bg-blue-500 text-white py-2 rounded">Login</button>
+    </div>
   </div>
 
-  <!-- User Section -->
-  <div id="userPanel" style="display:none;">
-    <h2>User Panel</h2>
-    <p>Place your lottery bet:</p>
-    <input id="lotteryNumber" placeholder="Enter number">
-    <button onclick="placeBet()">Place Bet</button>
-    <h3>Your Bets:</h3>
-    <ul id="betsList"></ul>
+  <!-- Main App -->
+  <div id="appSection" class="hidden p-4">
+    <div class="flex justify-between items-center mb-4">
+      <h1 class="text-xl font-bold">Lottery System</h1>
+      <div>
+        <button id="adminBtn" class="bg-purple-500 text-white px-4 py-1 rounded">Admin</button>
+        <button id="logoutBtn" class="bg-red-500 text-white px-4 py-1 rounded">Logout</button>
+      </div>
+    </div>
+
+    <div class="mb-4">
+      <input id="betNumber" type="text" placeholder="ထိုးမယ့်နံပါတ်" class="border p-2 rounded">
+      <input id="betAmount" type="number" placeholder="Amount" class="border p-2 rounded">
+      <button id="addBetBtn" class="bg-green-500 text-white px-3 py-1 rounded">ထိုးမယ်</button>
+    </div>
+
+    <div id="betList" class="bg-white p-4 rounded shadow"></div>
+
+    <div class="mt-4">
+      <button id="payNowBtn" class="bg-blue-600 text-white px-4 py-2 rounded">Pay Now</button>
+    </div>
   </div>
 
-  <!-- Admin Section -->
-  <div id="adminPanel" style="display:none; background:#eee; padding:10px;">
-    <h2>Admin Panel</h2>
-    <p>Set Winning Number:</p>
-    <input id="winningNumber" placeholder="Enter winning number">
-    <button onclick="setWinning()">Set Winning</button>
-    <h3>All Bets:</h3>
-    <ul id="allBets"></ul>
+  <!-- Admin Modal -->
+  <div id="adminModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+    <div class="bg-white p-6 rounded-lg w-96 relative">
+      <button id="closeAdmin" class="absolute top-2 right-2 text-red-500">✖</button>
+      <h2 class="text-xl font-bold mb-4">Admin Panel</h2>
+      <div id="userList" class="mb-4"></div>
+      <div id="masterStatus" class="text-sm text-gray-600"></div>
+    </div>
   </div>
 
   <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.3/firebase-firestore.js"></script>
+  <script type="module">
+    // Import Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
-  <script>
-    //  Firebase Config
+    // Firebase Config (မင်းပေးထားတဲ့အတိုင်း)
     const firebaseConfig = {
       apiKey: "AIzaSyAcAMCXLexHyccOCJxWGxCcqlFcVX1UlMU",
       authDomain: "lottery-web-c7a5f.firebaseapp.com",
       projectId: "lottery-web-c7a5f",
-      storageBucket: "lottery-web-c7a5f.appspot.com",
+      storageBucket: "lottery-web-c7a5f.firebasestorage.app",
       messagingSenderId: "530176543902",
       appId: "1:530176543902:web:d197d6038f32631fbbbf8f",
-      measurementId: "G-6E09FJ49ZX"
+      measurementId: "G-6E09FJ49ZX",
+      databaseURL: "https://lottery-web-c7a5f-default-rtdb.firebaseio.com"
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-    // Admin email (only this account is admin)
-    const adminEmail = "admin@gmail.com";
+    // Login Logic
+    function login(phone, password) {
+      if (phone === "admin" && password === "1234") {
+        document.getElementById("loginSection").classList.add("hidden");
+        document.getElementById("appSection").classList.remove("hidden");
+        showNotification("Admin Login Success!");
+        return true;
+      }
+      return false;
+    }
 
-    // Register
-    async function register() {
-      const email = document.getElementById("email").value;
-      const pass = document.getElementById("password").value;
-      try {
-        await auth.createUserWithEmailAndPassword(email, pass);
-        alert("Registered successfully");
-      } catch (err) {
-        alert(err.message);
+    function logout() {
+      document.getElementById("loginSection").classList.remove("hidden");
+      document.getElementById("appSection").classList.add("hidden");
+    }
+
+    // Bet Logic
+    function addBet() {
+      const number = document.getElementById("betNumber").value.trim();
+      const amount = document.getElementById("betAmount").value.trim();
+      if (number && amount) {
+        const betRef = push(ref(db, "bets"));
+        set(betRef, {
+          number: number,
+          amount: amount,
+          time: new Date().toLocaleString()
+        });
+        showNotification("Bet Added!");
       }
     }
 
-    // Login
-    async function login() {
-      const email = document.getElementById("email").value;
-      const pass = document.getElementById("password").value;
-      try {
-        await auth.signInWithEmailAndPassword(email, pass);
-        alert("Login successful");
-      } catch (err) {
-        alert(err.message);
-      }
+    function placeBet() {
+      showNotification("All bets submitted!");
     }
 
-    // Logout
-    async function logout() {
-      await auth.signOut();
+    // Show Notification
+    function showNotification(message) {
+      const existing = document.getElementById("notification");
+      if (existing) existing.remove();
+
+      const notification = document.createElement("div");
+      notification.id = "notification";
+      notification.className = "fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-bounce";
+      notification.textContent = message;
+      document.body.appendChild(notification);
+
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
     }
 
-    // Auth State Listener
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        document.getElementById("auth").style.display = "none";
+    // Admin Panel
+    function updateUserList() {
+      const userList = document.getElementById("userList");
+      userList.innerHTML = "<p class='text-gray-600'>No users yet.</p>";
+    }
 
-        if (user.email === adminEmail) {
-          document.getElementById("adminPanel").style.display = "block";
-          loadAllBets();
-        } else {
-          document.getElementById("userPanel").style.display = "block";
-          loadMyBets(user.uid);
-        }
-      } else {
-        document.getElementById("auth").style.display = "block";
-        document.getElementById("userPanel").style.display = "none";
-        document.getElementById("adminPanel").style.display = "none";
+    function updateMasterStatus() {
+      document.getElementById("masterStatus").innerText = "Master: Online ✅";
+    }
+
+    // Event Listeners
+    document.getElementById("loginBtn").addEventListener("click", () => {
+      const phone = document.getElementById("loginPhone").value;
+      const pass = document.getElementById("loginPassword").value;
+      if (!login(phone, pass)) {
+        alert("ဖုန်းနံပါတ် / Password မှားနေပါသည်!");
       }
     });
 
-    // User: Place bet
-    async function placeBet() {
-      const number = document.getElementById("lotteryNumber").value;
-      const user = auth.currentUser;
-      if (!user) return;
+    document.getElementById("logoutBtn").addEventListener("click", logout);
+    document.getElementById("addBetBtn").addEventListener("click", addBet);
+    document.getElementById("payNowBtn").addEventListener("click", placeBet);
 
-      await db.collection("bets").add({
-        uid: user.uid,
-        email: user.email,
-        number: number,
-        time: Date.now()
+    document.getElementById("adminBtn").addEventListener("click", () => {
+      document.getElementById("adminModal").classList.remove("hidden");
+      updateUserList();
+      updateMasterStatus();
+    });
+
+    document.getElementById("closeAdmin").addEventListener("click", () => {
+      document.getElementById("adminModal").classList.add("hidden");
+    });
+
+    // Real-time Sync (Firebase)
+    onValue(ref(db, "bets"), (snapshot) => {
+      const betList = document.getElementById("betList");
+      betList.innerHTML = "";
+      snapshot.forEach(child => {
+        const data = child.val();
+        const div = document.createElement("div");
+        div.className = "border-b py-1";
+        div.textContent = `${data.number} - ${data.amount} Ks (${data.time})`;
+        betList.appendChild(div);
       });
-      alert("Bet placed!");
-      loadMyBets(user.uid);
-    }
+    });
 
-    // Load User Bets
-    async function loadMyBets(uid) {
-      const list = document.getElementById("betsList");
-      list.innerHTML = "";
-      const snap = await db.collection("bets").where("uid", "==", uid).get();
-      snap.forEach(doc => {
-        const li = document.createElement("li");
-        li.textContent = doc.data().number;
-        list.appendChild(li);
-      });
-    }
-
-    // Admin: Set Winning Number
-    async function setWinning() {
-      const number = document.getElementById("winningNumber").value;
-      await db.collection("settings").doc("winning").set({ number });
-      alert("Winning number set: " + number);
-    }
-
-    // Admin: Load all bets
-    async function loadAllBets() {
-      const list = document.getElementById("allBets");
-      list.innerHTML = "";
-      const snap = await db.collection("bets").get();
-      snap.forEach(doc => {
-        const li = document.createElement("li");
-        li.textContent = doc.data().email + " bet: " + doc.data().number;
-        list.appendChild(li);
-      });
-    }
   </script>
 </body>
 </html>
